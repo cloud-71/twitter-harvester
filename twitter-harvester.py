@@ -43,6 +43,7 @@ class CouchdbConnection:
         else:
             self.db = couchserver.create(db_name)
 
+    # Insert tweet JSON into CouchDB whole as a document.
     def insert_document(self, doc):
         json_dict = json.loads(doc)
         doc_id, doc_rev = self.db.save(json_dict)
