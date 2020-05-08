@@ -1,0 +1,20 @@
+name: Twitter-Harvester Docker Image Publishing
+on:
+  push:
+    branches:
+      - master
+env:
+  IMAGE_NAME: twitter-harvester
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to GitHub Package Registry
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{ github.repository }} --password-stdin
+      - name: Build the Docker image
+        run: docker build -t $IMAGE_NAME .
+      - name: Tag the Docker image
+        run: docker tag ${IMAGE_NAME} docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME:${{ github.run_number }}
+      - name: Push the Docker image to the registry
+        run: docker push docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME:${{ github.run_number }}
