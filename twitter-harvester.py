@@ -10,6 +10,7 @@ import couchdb
 import json
 
 
+# Class containing Twitter API access tokens and Tweepy API connection
 class TwitterConnection:
     def __init__(self):
         # Twitter app consumer api keys
@@ -28,6 +29,7 @@ class TwitterConnection:
         api_entry_point = tweepy.API(self.auth)
 
 
+# Class containing connection info for couchdb instance
 class CouchdbConnection:
     def __init__(self):
         # TODO: Have all creds and endpoints specified at startup
