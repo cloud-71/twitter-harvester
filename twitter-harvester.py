@@ -8,6 +8,7 @@ from tweepy import OAuthHandler
 from tweepy.api import API
 import couchdb
 import json
+import os
 
 
 # Class containing Twitter API access tokens and Tweepy API connection
@@ -35,9 +36,12 @@ class CouchdbConnection:
         # TODO: Have all creds and endpoints specified at startup
         user = "admin"
         password = "5EgO4LJzU88xrw6eJpiL"
-        couchserver = couchdb.Server("http://%s:%s@chart-example.local:5984/" % (user, password))
+        couchserver = couchdb.Server("http://%s:%s@%s:5984/" % (
+            os.environ.get('COUCHDB_USER', 'admin'),
+            os.environ.get('COUCHDB_PASSWORD', 'admin'),
+            os.environ.get('COUCHDB_HOST', 'couchdb-couchdb.default.svc.cluster.local')))
 
-        db_name = "twitter_test"
+        db_name = os.environ.get('COUCHDB_DB_NAME', 'twitter_data')
         if db_name in couchserver:
             self.db = couchserver[db_name]
         else:
