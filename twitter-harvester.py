@@ -9,14 +9,13 @@ from tweepy.api import API
 import couchdb
 import json
 import os
-import logging
 
 
 # Class containing Twitter API access tokens and Tweepy API connection
 class TwitterConnection:
     def __init__(self):
 
-        logging.debug('Entered TwitterConnection')
+        print('Entered TwitterConnection')
 
         # Twitter app consumer api keys
         consumer_api_key = 'ywghK4N2SM4M7S3TNBuKhtFzi'
@@ -33,16 +32,16 @@ class TwitterConnection:
         # Setup API entry point
         api_entry_point = tweepy.API(self.auth)
 
-        logging.debug('Finished TwitterConnection')
+        print('Finished TwitterConnection')
 
 
 # Class containing connection info for couchdb instance
 class CouchdbConnection:
     def __init__(self):
-        logging.debug('Trying to connect to http://%s:%s@%s:5984/',
-                      os.environ.get('COUCHDB_USER', 'admin'),
+        print('Trying to connect to http://%s:%s@%s:5984/',
+                      os.environ.get('COUCHDB_USERNAME', 'admin'),
                       os.environ.get('COUCHDB_PASSWORD', 'admin'),
-                      os.environ.get('COUCHDB_HOST', 'couchdb-couchdb.default.svc.cluster.local'))
+                      os.environ.get('COUCHDB_HOST', 'localhost'))
 
         couchserver = couchdb.Server("http://%s:%s@%s:5984/" % (
             os.environ.get('COUCHDB_USER', 'admin'),
@@ -50,12 +49,13 @@ class CouchdbConnection:
             os.environ.get('COUCHDB_HOST', 'couchdb-couchdb.default.svc.cluster.local')))
 
         db_name = os.environ.get('COUCHDB_DB_NAME', 'twitter_data')
+
         if db_name in couchserver:
             self.db = couchserver[db_name]
         else:
             self.db = couchserver.create(db_name)
 
-        logging.debug('Finished CouchdbConnection')
+        print('Finished CouchdbConnection')
 
     # Insert tweet JSON into CouchDB whole as a document.
     def insert_document(self, doc):
@@ -68,7 +68,7 @@ class TweepyListener(StreamListener):
     MAX_TWEETS_TO_HARVEST = 100
 
     def __init__(self, couchdb_conn, api=None):
-        logging.debug('Entered TweepyListener')
+        print('Entered TweepyListener')
         self.api = api or API()
         self.tweet_counter = 0
         self.couchdb_conn = couchdb_conn
@@ -77,7 +77,7 @@ class TweepyListener(StreamListener):
         self.tweet_counter += 1
 
     def on_data(self, data):
-        logging.debug('Received a tweet')
+        print('Received a tweet')
         try:
             if self.tweet_counter < TweepyListener.MAX_TWEETS_TO_HARVEST:
                 self.couchdb_conn.insert_document(data)
@@ -92,10 +92,6 @@ class TweepyListener(StreamListener):
     def on_error(self, status):
         print(status)
         return True
-
-
-# Setup logging
-logging.basicConfig(filename='twitter_harvester_debug.log', filemode='w', level=logging.DEBUG)
 
 # Setup the twitter API connection using Tweepy
 twitter_conn = TwitterConnection()
