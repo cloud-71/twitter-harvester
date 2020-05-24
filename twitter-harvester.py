@@ -86,21 +86,22 @@ class TweepyListener(StreamListener):
 
     def is_loc_in_aus(self, tweet_data):
         tweet_dict = json.loads(tweet_data)
-        if not (tweet_dict.get('place') is None):
-            if not (tweet_dict.get('country') is None):
-                if tweet_dict.get('country') == 'Australia' or tweet_dict.get('country_code') == 'AU':
-                    return True
+        if not (tweet_dict.get('place', {}).get('country') is None):
+            if tweet_dict.get('place', {}).get('country') == 'Australia' or \
+                    tweet_dict.get('place', {}).get('country_code') == 'AU':
+                return True
 
         # Geo atttribute coordinates is lat, long
         if not (tweet_dict.get('geo') is None):
             geo_point = Point(tweet_dict['geo']['coordinates'][1], tweet_dict['geo']['coordinates'][0])
-            if self.polygon.contains(geo_point):
+            if self.australia_polygon.contains(geo_point):
                 return True
 
         # Coordinates attribute coordinates is long, lat
         if not (tweet_dict.get('coordinates') is None):
-            coord_point = Point(tweet_dict['coordinates']['coordinates'][0], tweet_dict['geo']['coordinates'][0])
-            if self.polygon.contains(coord_point):
+            coord_point = Point(tweet_dict['coordinates']['coordinates'][0],
+                                tweet_dict['coordinates']['coordinates'][1])
+            if self.australia_polygon.contains(coord_point):
                 return True
 
         if not (tweet_dict.get('user', {}).get('location') is None):
@@ -128,10 +129,9 @@ class TweepyListener(StreamListener):
         print(status)
         return True
 
-
 # Setup the twitter API connection using Tweepy
 twitter_conn = TwitterConnection()
 
 # Begin the streaming of tweets with keywords
 twitter_stream = Stream(twitter_conn.auth, TweepyListener(CouchdbConnection()))
-twitter_stream.filter(track=['#DomesticAbuse', 'DomesticViolence'])
+twitter_stream.filter(track=['#DomesticAbuse', 'DomesticViolence', '#metoo', '#domesticabuse', '#domesticviolence'])
