@@ -9,7 +9,8 @@ from tweepy.api import API
 import couchdb
 import json
 import os
-
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
 
 # Class containing Twitter API access tokens and Tweepy API connection
 class TwitterConnection:
@@ -38,12 +39,12 @@ class TwitterConnection:
 # Class containing connection info for couchdb instance
 class CouchdbConnection:
     def __init__(self):
-        print('Trying to connect to http://%s:%s@%s:5984/',
+        print("Trying to connect to https://%s:%s@%s:5984/",
                       os.environ.get('COUCHDB_USERNAME', 'admin'),
                       os.environ.get('COUCHDB_PASSWORD', 'admin'),
                       os.environ.get('COUCHDB_HOST', 'localhost'))
 
-        couchserver = couchdb.Server("http://%s:%s@%s:5984/" % (
+        couchserver = couchdb.Server("https://%s:%s@%s:5984/" % (
             os.environ.get('COUCHDB_USER', 'admin'),
             os.environ.get('COUCHDB_PASSWORD', 'admin'),
             os.environ.get('COUCHDB_HOST', 'couchdb-couchdb.default.svc.cluster.local')))
@@ -60,28 +61,62 @@ class CouchdbConnection:
     # Insert tweet JSON into CouchDB whole as a document.
     def insert_document(self, doc):
         json_dict = json.loads(doc)
-        doc_id, doc_rev = self.db.save(json_dict)
+        self.db[json_dict.get('id')] = json_dict
 
 
 # Listener class for streaming
 class TweepyListener(StreamListener):
-    MAX_TWEETS_TO_HARVEST = 100
+    MAX_TWEETS_TO_HARVEST = 100000
 
     def __init__(self, couchdb_conn, api=None):
         print('Entered TweepyListener')
         self.api = api or API()
         self.tweet_counter = 0
         self.couchdb_conn = couchdb_conn
+        # Boundary box for Australia in (long, lat)
+        self.australia_polygon = Polygon([(111.5894433919, -44.9473198344),
+                                     (111.0154256163, -10.7845273937),
+                                     (153.9936246305, -10.1715574061),
+                                     (154.567642406, -44.5044315388),
+                                     (111.5894433919, -44.9473198344)])
+
 
     def update_counter(self):
         self.tweet_counter += 1
+
+    def is_loc_in_aus(self, tweet_data):
+        tweet_dict = json.loads(tweet_data)
+        if not (tweet_dict.get('place') is None):
+            if not (tweet_dict.get('country') is None):
+                if tweet_dict.get('country') == 'Australia' or tweet_dict.get('country_code') == 'AU':
+                    return True
+
+        # Geo atttribute coordinates is lat, long
+        if not (tweet_dict.get('geo') is None):
+            geo_point = Point(tweet_dict['geo']['coordinates'][1], tweet_dict['geo']['coordinates'][0])
+            if self.polygon.contains(geo_point):
+                return True
+
+        # Coordinates attribute coordinates is long, lat
+        if not (tweet_dict.get('coordinates') is None):
+            coord_point = Point(tweet_dict['coordinates']['coordinates'][0], tweet_dict['geo']['coordinates'][0])
+            if self.polygon.contains(coord_point):
+                return True
+
+        if not (tweet_dict.get('user', {}).get('location') is None):
+            loc_string = tweet_dict.get('user', {}).get('location').lower()
+            if 'australia' in loc_string or 'sydney' in loc_string or 'melbourne' in loc_string:
+                return True
+
+        return False
 
     def on_data(self, data):
         print('Received a tweet')
         try:
             if self.tweet_counter < TweepyListener.MAX_TWEETS_TO_HARVEST:
-                self.couchdb_conn.insert_document(data)
-                self.update_counter()
+                if self.is_loc_in_aus(data):
+                    self.couchdb_conn.insert_document(data)
+                    self.update_counter()
                 return True
             else:
                 return False
@@ -92,6 +127,7 @@ class TweepyListener(StreamListener):
     def on_error(self, status):
         print(status)
         return True
+
 
 # Setup the twitter API connection using Tweepy
 twitter_conn = TwitterConnection()
