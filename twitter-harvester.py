@@ -14,6 +14,7 @@ from shapely.geometry.polygon import Polygon
 import logging
 import sys
 from time import sleep
+import requests
 
 
 # Class containing Twitter API access tokens and Tweepy API connection
@@ -60,6 +61,14 @@ class CouchdbConnection:
         else:
             self.db = couchserver.create(db_name)
 
+        # Upload design document for front end word cloud
+        with open("designs/%s.json" % db_name) as designfile:
+            design_doc = json.load(designfile)
+            requests.put("http://%s@%s/%s/_design/views" %
+                         (os.environ.get('COUCHDB_USER', 'admin'),
+                          os.environ.get('COUCHDB_PASSWORD', 'admin'),
+                          db_name), json=design_doc)
+
         logging.debug('Finished CouchdbConnection')
 
     # Insert tweet JSON into CouchDB whole as a document.
@@ -90,15 +99,15 @@ class TweepyListener(StreamListener):
     def is_loc_in_aus(self, tweet_data):
         tweet_dict = json.loads(tweet_data)
         logging.debug('Checking place')
-        if not (tweet_dict.get('place', {}).get('country') is None):
-            if tweet_dict.get('place', {}).get('country') == 'Australia' or \
-                    tweet_dict.get('place', {}).get('country_code') == 'AU':
+        if (tweet_dict.get('place') is not None) and (tweet_dict.get('place').get('country') is not None):
+            if tweet_dict.get('place').get('country') == 'Australia' or \
+                    tweet_dict.get('place').get('country_code') == 'AU':
                 logging.debug('Found place')
                 return True
 
         # Geo atttribute coordinates is lat, long
         logging.debug('Checking geo-coordinates attribute')
-        if not (tweet_dict.get('geo') is None):
+        if (tweet_dict.get('geo') is not None) and (tweet_dict.get('geo').get('coordinates') is not None):
             geo_point = Point(tweet_dict['geo']['coordinates'][1], tweet_dict['geo']['coordinates'][0])
             if self.australia_polygon.contains(geo_point):
                 logging.debug('Found geo-coords')
@@ -106,7 +115,7 @@ class TweepyListener(StreamListener):
 
         # Coordinates attribute coordinates is long, lat
         logging.debug('Checking coordinates-coordinates attribute')
-        if not (tweet_dict.get('coordinates') is None):
+        if (tweet_dict.get('coordinates') is not None) and (tweet_dict.get('coordinates').get('coordinates') is not None):
             coord_point = Point(tweet_dict['coordinates']['coordinates'][0],
                                 tweet_dict['coordinates']['coordinates'][1])
             if self.australia_polygon.contains(coord_point):
@@ -114,7 +123,7 @@ class TweepyListener(StreamListener):
                 return True
 
         logging.debug('Checking user location')
-        if not (tweet_dict.get('user', {}).get('location') is None):
+        if (tweet_dict.get('user') is not None) and (tweet_dict.get('user').get('location') is not None):
             loc_string = tweet_dict.get('user', {}).get('location').lower()
             loc_list = ["australia", "vic", "nsw", "melbourne", "sydney", "adelaide", "brisbane", "perth"]
             logging.debug('User location is: ', loc_string)
