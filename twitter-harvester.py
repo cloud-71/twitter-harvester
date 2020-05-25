@@ -13,6 +13,7 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import logging
 import sys
+from time import sleep
 
 
 # Class containing Twitter API access tokens and Tweepy API connection
@@ -88,27 +89,37 @@ class TweepyListener(StreamListener):
 
     def is_loc_in_aus(self, tweet_data):
         tweet_dict = json.loads(tweet_data)
+        logging.debug('Checking place')
         if not (tweet_dict.get('place', {}).get('country') is None):
             if tweet_dict.get('place', {}).get('country') == 'Australia' or \
                     tweet_dict.get('place', {}).get('country_code') == 'AU':
+                logging.debug('Found place')
                 return True
 
         # Geo atttribute coordinates is lat, long
+        logging.debug('Checking geo-coordinates attribute')
         if not (tweet_dict.get('geo') is None):
             geo_point = Point(tweet_dict['geo']['coordinates'][1], tweet_dict['geo']['coordinates'][0])
             if self.australia_polygon.contains(geo_point):
+                logging.debug('Found geo-coords')
                 return True
 
         # Coordinates attribute coordinates is long, lat
+        logging.debug('Checking coordinates-coordinates attribute')
         if not (tweet_dict.get('coordinates') is None):
             coord_point = Point(tweet_dict['coordinates']['coordinates'][0],
                                 tweet_dict['coordinates']['coordinates'][1])
             if self.australia_polygon.contains(coord_point):
+                logging.debug('Found coords-coords')
                 return True
 
+        logging.debug('Checking user location')
         if not (tweet_dict.get('user', {}).get('location') is None):
             loc_string = tweet_dict.get('user', {}).get('location').lower()
-            if 'australia' in loc_string or 'sydney' in loc_string or 'melbourne' in loc_string:
+            loc_list = ["australia", "vic", "nsw", "melbourne", "sydney", "adelaide", "brisbane", "perth"]
+            logging.debug('User location is: ', loc_string)
+            if any(s in loc_string for s in loc_list):
+                logging.debug('Found user location')
                 return True
 
         return False
@@ -138,26 +149,41 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 # Setup the twitter API connection using Tweepy
 twitter_conn = TwitterConnection()
 
-# Grab a set of tweets about the topic to start with
-searched_tweets = []
-last_id = -1
-max_tweets = 10000
-while len(searched_tweets) < max_tweets:
-    count = max_tweets - len(searched_tweets)
-    try:
-        new_tweets = twitter_conn.api_entry_point.search(q='domesticabuse', geocode="-37.840935,144.946457,1000km", count=count, max_id=str(last_id - 1))
-        if not new_tweets:
-            break
-        searched_tweets.extend(new_tweets)
-        last_id = new_tweets[-1].id
-    except tweepy.TweepError as e:
-        break
-
+# Setup couchdb connection
 couchdb_conn = CouchdbConnection()
-for tweet in searched_tweets:
-    json_str = json.dumps(tweet._json)
-    couchdb_conn.insert_document(json_str)
 
 # Begin the streaming of tweets with keywords
 twitter_stream = Stream(twitter_conn.auth, TweepyListener(couchdb_conn))
-twitter_stream.filter(track=['#DomesticAbuse', 'DomesticViolence', '#metoo', '#domesticabuse', '#domesticviolence'])
+twitter_stream.filter(track=['#DomesticAbuse', 'DomesticViolence', '#metoo', '#domesticabuse', '#domesticviolence'],
+                      is_async=True)
+
+# Grab a set of tweets about the topic to start with
+while True:
+    logging.debug('Starting up tweet search')
+    searched_tweets = []
+    last_id = -1
+    max_tweets = 1000
+    while len(searched_tweets) < max_tweets:
+        count = max_tweets - len(searched_tweets)
+        try:
+            new_tweets = twitter_conn.api_entry_point.search(q='domesticabuse',
+                                                             geocode="-37.840935,144.946457,1000km",
+                                                             count=count,
+                                                             max_id=str(last_id - 1),
+                                                             tweet_mode="extended")
+            if not new_tweets:
+                break
+            searched_tweets.extend(new_tweets)
+            last_id = new_tweets[-1].id
+        except tweepy.TweepError as e:
+            break
+
+    for tweet in searched_tweets:
+        json_str = json.dumps(tweet._json)
+        couchdb_conn.insert_document(json_str)
+
+    # Wait 5 minutes and search for more tweets
+    logging.debug('Waiting 5 mins before next tweet search')
+    sleep(300)
+
+
