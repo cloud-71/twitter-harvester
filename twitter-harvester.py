@@ -64,7 +64,7 @@ class CouchdbConnection:
     # Insert tweet JSON into CouchDB whole as a document.
     def insert_document(self, doc):
         json_dict = json.loads(doc)
-        self.db[json_dict.get('id')] = json_dict
+        self.db[str(json_dict.get('id'))] = json_dict
 
 
 # Listener class for streaming
@@ -145,7 +145,7 @@ max_tweets = 10000
 while len(searched_tweets) < max_tweets:
     count = max_tweets - len(searched_tweets)
     try:
-        new_tweets = twitter_conn.api_entry_point.search(q='domestic abuse', geocode="-37.840935,144.946457,1000km", count=count, max_id=str(last_id - 1))
+        new_tweets = twitter_conn.api_entry_point.search(q='domesticabuse', geocode="-37.840935,144.946457,1000km", count=count, max_id=str(last_id - 1))
         if not new_tweets:
             break
         searched_tweets.extend(new_tweets)
