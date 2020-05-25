@@ -47,7 +47,7 @@ class CouchdbConnection:
                       os.environ.get('COUCHDB_PASSWORD', 'admin'),
                       os.environ.get('COUCHDB_HOST', 'localhost'))
 
-        couchserver = couchdb.Server("https://%s:%s@%s:5984/" % (
+        couchserver = couchdb.Server("http://%s:%s@%s:5984/" % (
             os.environ.get('COUCHDB_USER', 'admin'),
             os.environ.get('COUCHDB_PASSWORD', 'admin'),
             os.environ.get('COUCHDB_HOST', 'couchdb-couchdb.default.svc.cluster.local')))
