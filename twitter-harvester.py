@@ -11,12 +11,15 @@ import json
 import os
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
+import logging
+import sys
+
 
 # Class containing Twitter API access tokens and Tweepy API connection
 class TwitterConnection:
     def __init__(self):
 
-        print('Entered TwitterConnection')
+        logging.debug('Entered TwitterConnection')
 
         # Twitter app consumer api keys
         consumer_api_key = 'ywghK4N2SM4M7S3TNBuKhtFzi'
@@ -33,13 +36,13 @@ class TwitterConnection:
         # Setup API entry point
         self.api_entry_point = tweepy.API(self.auth)
 
-        print('Finished TwitterConnection')
+        logging.debug('Finished TwitterConnection')
 
 
 # Class containing connection info for couchdb instance
 class CouchdbConnection:
     def __init__(self):
-        print("Trying to connect to https://%s:%s@%s:5984/",
+        logging.debug("Trying to connect to https://%s:%s@%s:5984/",
                       os.environ.get('COUCHDB_USERNAME', 'admin'),
                       os.environ.get('COUCHDB_PASSWORD', 'admin'),
                       os.environ.get('COUCHDB_HOST', 'localhost'))
@@ -56,7 +59,7 @@ class CouchdbConnection:
         else:
             self.db = couchserver.create(db_name)
 
-        print('Finished CouchdbConnection')
+        logging.debug('Finished CouchdbConnection')
 
     # Insert tweet JSON into CouchDB whole as a document.
     def insert_document(self, doc):
@@ -69,7 +72,7 @@ class TweepyListener(StreamListener):
     MAX_TWEETS_TO_HARVEST = 100000
 
     def __init__(self, couchdb_conn, api=None):
-        print('Entered TweepyListener')
+        logging.debug('Entered TweepyListener')
         self.api = api or API()
         self.tweet_counter = 0
         self.couchdb_conn = couchdb_conn
@@ -79,7 +82,6 @@ class TweepyListener(StreamListener):
                                      (153.9936246305, -10.1715574061),
                                      (154.567642406, -44.5044315388),
                                      (111.5894433919, -44.9473198344)])
-
 
     def update_counter(self):
         self.tweet_counter += 1
@@ -112,7 +114,7 @@ class TweepyListener(StreamListener):
         return False
 
     def on_data(self, data):
-        print('Received a tweet')
+        logging.debug('Received a tweet')
         try:
             if self.tweet_counter < TweepyListener.MAX_TWEETS_TO_HARVEST:
                 if self.is_loc_in_aus(data):
@@ -122,12 +124,16 @@ class TweepyListener(StreamListener):
             else:
                 return False
         except BaseException as e:
-            print("Error on_data: %s" % str(e))
+            logging.debug("Error on_data: %s" % str(e))
         return True
 
     def on_error(self, status):
-        print(status)
+        logging.debug(status)
         return True
+
+
+# Setup logging
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 # Setup the twitter API connection using Tweepy
 twitter_conn = TwitterConnection()
