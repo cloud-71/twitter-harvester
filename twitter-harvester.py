@@ -153,6 +153,37 @@ class TweepyListener(StreamListener):
         return True
 
 
+def run_tweet_query(in_twitter_conn, in_couchdb_conn, in_query_str):
+    searched_tweets = []
+    last_id = -1
+    max_tweets = 1000
+    while len(searched_tweets) < max_tweets:
+        count = max_tweets - len(searched_tweets)
+        try:
+            new_tweets = in_twitter_conn.api_entry_point.search(q=query_str,
+                                                             geocode="-37.840935,144.946457,1000km",
+                                                             count=count,
+                                                             max_id=str(last_id - 1),
+                                                             tweet_mode="extended")
+            if not new_tweets:
+                break
+            searched_tweets.extend(new_tweets)
+            last_id = new_tweets[-1].id
+        except tweepy.TweepError as e:
+            break
+
+    logging.debug('Num of tweets retrieved for %s is: %s' % (in_query_str, str(len(searched_tweets))))
+
+    for tweet in searched_tweets:
+        try:
+            json_str = json.dumps(tweet._json)
+            in_couchdb_conn.insert_document(json_str)
+        except couchdb.http.ResourceConflict as e:
+            logging.debug('Caught resource conflict')
+
+    return
+
+
 # Setup logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
@@ -168,33 +199,15 @@ twitter_stream.filter(track=['#DomesticAbuse', 'DomesticViolence', '#metoo', '#d
                       is_async=True)
 
 # Grab a set of tweets about the topic to start with
+twitter_search_terms = ["domestic abuse", "domesticabuse", "#DomesticAbuse", "domestic violence", "domesticviolence",
+                        "#DomesticViolence", "family abuse", "familyabuse", "#FamilyAbuse", "family violence",
+                        "familyviolence", "#FamilyViolence", "violence against women", "psychological abuse"]
 while True:
-    logging.debug('Starting up tweet search')
-    searched_tweets = []
-    last_id = -1
-    max_tweets = 1000
-    while len(searched_tweets) < max_tweets:
-        count = max_tweets - len(searched_tweets)
-        try:
-            new_tweets = twitter_conn.api_entry_point.search(q='domesticabuse',
-                                                             geocode="-37.840935,144.946457,1000km",
-                                                             count=count,
-                                                             max_id=str(last_id - 1),
-                                                             tweet_mode="extended")
-            if not new_tweets:
-                break
-            searched_tweets.extend(new_tweets)
-            last_id = new_tweets[-1].id
-        except tweepy.TweepError as e:
-            break
+    logging.debug('Starting up set of tweet searches')
 
-    logging.debug('Num of tweets retrieved is: %s' % str(len(searched_tweets)))
-    for tweet in searched_tweets:
-        json_str = json.dumps(tweet._json)
-        couchdb_conn.insert_document(json_str)
+    for query_str in twitter_search_terms:
+        run_tweet_query(twitter_conn, couchdb_conn, query_str)
 
     # Wait 5 minutes and search for more tweets
     logging.debug('Waiting 5 mins before next tweet search')
     sleep(300)
-
-
