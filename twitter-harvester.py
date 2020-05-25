@@ -155,7 +155,7 @@ while len(searched_tweets) < max_tweets:
 
 couchdb_conn = CouchdbConnection()
 for tweet in searched_tweets:
-    couchdb_conn.insert_document(tweet)
+    couchdb_conn.insert_document(tweet._json)
 
 # Begin the streaming of tweets with keywords
 twitter_stream = Stream(twitter_conn.auth, TweepyListener(couchdb_conn))
