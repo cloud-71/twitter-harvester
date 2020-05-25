@@ -126,7 +126,7 @@ class TweepyListener(StreamListener):
         if (tweet_dict.get('user') is not None) and (tweet_dict.get('user').get('location') is not None):
             loc_string = tweet_dict.get('user', {}).get('location').lower()
             loc_list = ["australia", "vic", "nsw", "melbourne", "sydney", "adelaide", "brisbane", "perth"]
-            logging.debug('User location is: ', loc_string)
+            logging.debug('User location is: %s' % str(loc_string))
             if any(s in loc_string for s in loc_list):
                 logging.debug('Found user location')
                 return True
@@ -187,6 +187,7 @@ while True:
         except tweepy.TweepError as e:
             break
 
+    logging.debug('Num of tweets retrieved is: %s' % str(len(searched_tweets)))
     for tweet in searched_tweets:
         json_str = json.dumps(tweet._json)
         couchdb_conn.insert_document(json_str)
