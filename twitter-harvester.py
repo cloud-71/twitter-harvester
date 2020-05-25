@@ -64,9 +64,10 @@ class CouchdbConnection:
         # Upload design document for front end word cloud
         with open("designs/%s.json" % db_name) as designfile:
             design_doc = json.load(designfile)
-            requests.put("http://%s@%s/%s/_design/views" %
+            requests.put("http://%s:%s@%s/%s/_design/views" %
                          (os.environ.get('COUCHDB_USER', 'admin'),
                           os.environ.get('COUCHDB_PASSWORD', 'admin'),
+                          os.environ.get('COUCHDB_HOST', 'admin'),
                           db_name), json=design_doc)
 
         logging.debug('Finished CouchdbConnection')
