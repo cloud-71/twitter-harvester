@@ -31,7 +31,7 @@ class TwitterConnection:
         self.auth.set_access_token(access_token, access_token_secret)
 
         # Setup API entry point
-        api_entry_point = tweepy.API(self.auth)
+        self.api_entry_point = tweepy.API(self.auth)
 
         print('Finished TwitterConnection')
 
@@ -132,6 +132,25 @@ class TweepyListener(StreamListener):
 # Setup the twitter API connection using Tweepy
 twitter_conn = TwitterConnection()
 
+# Grab a set of tweets about the topic to start with
+searched_tweets = []
+last_id = -1
+max_tweets = 10000
+while len(searched_tweets) < max_tweets:
+    count = max_tweets - len(searched_tweets)
+    try:
+        new_tweets = twitter_conn.api_entry_point.search(q='domestic abuse', geocode="-37.840935,144.946457,1000km", count=count, max_id=str(last_id - 1))
+        if not new_tweets:
+            break
+        searched_tweets.extend(new_tweets)
+        last_id = new_tweets[-1].id
+    except tweepy.TweepError as e:
+        break
+
+couchdb_conn = CouchdbConnection()
+for tweet in searched_tweets:
+    couchdb_conn.insert_document(tweet)
+
 # Begin the streaming of tweets with keywords
-twitter_stream = Stream(twitter_conn.auth, TweepyListener(CouchdbConnection()))
+twitter_stream = Stream(twitter_conn.auth, TweepyListener(couchdb_conn))
 twitter_stream.filter(track=['#DomesticAbuse', 'DomesticViolence', '#metoo', '#domesticabuse', '#domesticviolence'])
