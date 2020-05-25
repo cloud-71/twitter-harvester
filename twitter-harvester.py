@@ -24,12 +24,12 @@ class TwitterConnection:
         logging.debug('Entered TwitterConnection')
 
         # Twitter app consumer api keys
-        consumer_api_key = 'ywghK4N2SM4M7S3TNBuKhtFzi'
-        consumer_api_secret = '7YX7bCrq7SEyOeu63F4uJnWdphMYCy7DuMKLJuWqcLK6q1jKtc'
+        consumer_api_key = os.environ.get('CONSUMER_TOKEN')
+        consumer_api_secret = os.environ.get('CONSUMER_SECRET')
 
         # Read and write access tokens
-        access_token = '1253896857903755264-kb9fdjDQZTKyoF9G5iCG8VUbLEfTeT'
-        access_token_secret = '20JGl14YB9FzQAApK23gljYAD9ESCHK90yCQ3US1NykCD'
+        access_token = os.environ.get('ACCESS_TOKEN')
+        access_token_secret = os.environ.get('ACCESS_SECRET')
 
         # Make use of OAuth interface for connection with Twitter API
         self.auth = OAuthHandler(consumer_api_key, consumer_api_secret)
