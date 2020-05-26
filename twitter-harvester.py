@@ -38,6 +38,9 @@ class TwitterConnection:
         # Setup API entry point
         self.api_entry_point = tweepy.API(self.auth)
 
+        # Designate whether this process will use streaming or search API
+        self.designation = os.environ.get('DESIGNATION')
+
         logging.debug('Finished TwitterConnection')
 
 
@@ -193,21 +196,22 @@ twitter_conn = TwitterConnection()
 # Setup couchdb connection
 couchdb_conn = CouchdbConnection()
 
-# Begin the streaming of tweets with keywords
-twitter_stream = Stream(twitter_conn.auth, TweepyListener(couchdb_conn))
-twitter_stream.filter(track=['#DomesticAbuse', 'DomesticViolence', '#metoo', '#domesticabuse', '#domesticviolence'],
-                      is_async=True)
+if twitter_conn.designation == 'streaming':
+    # Begin the streaming of tweets with keywords
+    twitter_stream = Stream(twitter_conn.auth, TweepyListener(couchdb_conn))
+    twitter_stream.filter(track=['#DomesticAbuse', 'DomesticViolence', '#metoo', '#domesticabuse', '#domesticviolence'])
 
-# Grab a set of tweets about the topic to start with
-twitter_search_terms = ["domestic abuse", "domesticabuse", "#DomesticAbuse", "domestic violence", "domesticviolence",
-                        "#DomesticViolence", "family abuse", "familyabuse", "#FamilyAbuse", "family violence",
-                        "familyviolence", "#FamilyViolence", "violence against women", "psychological abuse"]
-while True:
-    logging.debug('Starting up set of tweet searches')
+if twitter_conn.designation == 'search':
+    # Grab a set of tweets about the topic to start with
+    twitter_search_terms = ["domestic abuse", "domesticabuse", "#DomesticAbuse", "domestic violence", "domesticviolence",
+                            "#DomesticViolence", "family abuse", "familyabuse", "#FamilyAbuse", "family violence",
+                            "familyviolence", "#FamilyViolence", "violence against women", "psychological abuse"]
+    while True:
+        logging.debug('Starting up set of tweet searches')
 
-    for query_str in twitter_search_terms:
-        run_tweet_query(twitter_conn, couchdb_conn, query_str)
+        for query_str in twitter_search_terms:
+            run_tweet_query(twitter_conn, couchdb_conn, query_str)
 
-    # Wait 5 minutes and search for more tweets
-    logging.debug('Waiting 5 mins before next tweet search')
-    sleep(300)
+        # Wait 5 minutes and search for more tweets
+        logging.debug('Waiting 5 mins before next tweet search')
+        sleep(300)
